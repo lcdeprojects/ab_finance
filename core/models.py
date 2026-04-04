@@ -62,6 +62,44 @@ class Installment(models.Model):
     def pending_value(self):
         return self.value - self.paid_value
 
+    @property
+    def whatsapp_link(self):
+        if not self.payment.cliente or not self.payment.cliente.telefone:
+            return "#"
+        
+        nome = self.payment.cliente.nome
+        vencimento = self.due_date.strftime('%d/%m/%Y')
+        valor = f"{self.value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        parcela = self.number
+        total = self.payment.installments
+        telefone = self.payment.cliente.telefone
+        
+        # Clean phone (ensure 55 prefix if not present and only digits)
+        phone_clean = re.sub(r'\D', '', str(telefone))
+        if not phone_clean.startswith('55'):
+            phone_clean = '55' + phone_clean
+            
+        if parcela == 0:
+            referencia = "Referente à Entrada"
+        else:
+            referencia = f"Referente a parcela {parcela} de {total}"
+            
+        message = (
+            f"Boa tarde {nome}, como vai?\n\n"
+            f"Deixarei abaixo a chave pix do escritório para o depósito dos honorários deste mês, "
+            f"que deverá ser pago até o dia {vencimento}\n\n"
+            f"Banco Nubank\n"
+            f"Arthur Boettcher Sociedade Individual de Advocacia\n"
+            f"CNPJ: 61086178000191\n"
+            f"R$ {valor}\n\n"
+            f"{referencia}\n\n"
+            f"A equipe AB Advocacia se coloca a sua disposição para sanar eventuais dúvidas"
+        )
+        
+        import urllib.parse
+        encoded_message = urllib.parse.quote(message)
+        return f"https://wa.me/{phone_clean}?text={encoded_message}"
+
     def __str__(self):
         cliente_nome = self.payment.cliente.nome if self.payment.cliente else self.payment.name
         return f"{cliente_nome} - Parcela {self.number}/{self.payment.installments}"
