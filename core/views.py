@@ -234,7 +234,7 @@ def payment_control(request):
     year = int(year_val) if year_val else today.year
     
     # Base queryset: only UNPAID installments
-    qs = Installment.objects.filter(is_paid=False)
+    qs = Installment.objects.filter()
     
     if month and year:
         qs = qs.filter(due_date__month=month, due_date__year=year)
@@ -243,9 +243,11 @@ def payment_control(request):
         qs = qs.filter(payment__cliente__nome__icontains=name_query)
         
     if status_filter == 'overdue':
-        qs = qs.filter(due_date__lt=today)
-    elif status_filter == 'scheduled':
-        qs = qs.filter(due_date__gte=today)
+        qs = qs.filter(due_date__lt=today, is_paid=False)
+    if status_filter == 'scheduled':
+        qs = qs.filter(due_date__gte=today, is_paid=False)
+    if status_filter == 'paid':
+        qs = qs.filter(is_paid=True)
         
     installments = qs.order_by('due_date')
     
@@ -453,6 +455,38 @@ def paid_list(request):
         'name_query': name_query,
     }
     return render(request, 'core/paid_list.html', context)
+
+@login_required
+def pay_list(request):
+    month_val = request.GET.get('month')
+    year_val = request.GET.get('year')
+    name_query = request.GET.get('name')
+    
+    today = timezone.now().date()
+    
+    # Default to current month/year if not provided for receipts
+    month = int(month_val) if month_val else today.month
+    year = int(year_val) if year_val else today.year
+    
+    # Base queryset: only PAID installments
+    qs = Installment.objects.filter(due_date__month=month, due_date__year=year)
+    
+    if name_query:
+        qs = qs.filter(payment__cliente__nome__icontains=name_query)
+        
+    paid_installments = qs.order_by('-due_date')
+    total_received = sum(inst.value for inst in paid_installments)
+
+    context = {
+        'installments': paid_installments,
+        'selected_month': month,
+        'selected_year': year,
+        'month_name': MONTHS.get(month, "Mês"),
+        'months': MONTHS,
+        'month_total': total_received,
+        'name_query': name_query,
+    }
+    return render(request, 'core/pay_list.html', context)
 
 @login_required
 def export_installments_excel(request):

@@ -19,6 +19,7 @@
                 <option value="">Todos os Status</option>
                 <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Vencidos</option>
                 <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>A Vencer</option>
+                <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Pagos</option>
             </select>
         </div>
         {% else %}

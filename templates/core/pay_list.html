@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block header %}Recebidos{% endblock %}
+{% block content %}
+{% url 'pay_list' as action_url %}
+{% include 'core/partials/filter_bar.html' with action_url=action_url export_source='pay' %}
+
+<div class="mb-4 flex justify-between items-center px-2 font-sans">
+    <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200">
+        Recebimentos {% if name_query %}para "{{ name_query }}"{% endif %}
+        {% if selected_month or selected_year %} 
+            {% if selected_month %}({{ selected_month }}/{{ selected_year }}){% else %}(Ano {{ selected_year }}){% endif %}
+        {% endif %}
+    </h3>
+    <div class="bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-white px-4 py-1.5 rounded-full font-bold text-sm border border-green-100 dark:border-green-500/20">
+        Total: R$ {{ month_total|floatformat:2 }}
+    </div>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden font-sans">
+    <table class="w-full text-left border-collapse table-fixed">
+        <thead>
+            <tr class="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                <th class="p-4 w-[24%] text-left">Cliente</th>
+                <th class="p-4 w-[6%] text-center">Parc.</th>
+                <th class="p-4 w-[10%] text-left">Método</th>
+                <th class="p-4 w-[10%] text-left">V. Total</th>
+                <th class="p-4 w-[10%] text-left">Venc.</th>
+                <th class="p-4 w-[8%] text-center">Status</th>
+                <th class="p-4 w-[12%] text-right font-black text-green-600">V. Pago</th>
+                <th class="p-4 w-[12%] text-center text-green-600">Pago Em</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm">
+            {% for inst in installments %}
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+                <td class="p-4 text-xs text-slate-800 dark:text-slate-200 font-bold truncate uppercase tracking-tight" title="{{ inst.payment.cliente.nome }}">{{ inst.payment.cliente.nome }}</td>
+                <td class="p-4 text-center">
+                    <span class="text-xs font-mono text-slate-500 dark:text-slate-400">
+                        {% if inst.number == 0 %}<span class="text-primary italic font-black uppercase text-[10px]">Entrada</span>{% else %}{{ inst.number|stringformat:"02d" }}/{{ inst.payment.installments|stringformat:"02d" }}{% endif %}
+                    </span>
+                </td>
+                <td class="p-4">
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate block">{{ inst.payment.payment_method }}</span>
+                </td>
+                <td class="p-4 text-xs font-mono font-bold text-slate-600 dark:text-slate-400">R$ {{ inst.value|floatformat:2 }}</td>
+                <td class="p-4 text-xs font-mono text-slate-500 dark:text-slate-400">{{ inst.due_date|date:"d/m/Y" }}</td>
+                <td class="p-4 text-center">
+                    {% if inst.is_paid %}
+                        <span class="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] font-bold uppercase tracking-tight">Pago</span>
+                    {% else %}
+                        <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 text-[10px] font-bold uppercase tracking-tight">Pendente</span>
+                    {% endif %}
+                </td>
+                {% if inst.paid_value > 0 %}
+                <td class="p-4 text-xs font-mono text-right font-black text-green-600 dark:text-green-400">R$ {{ inst.paid_value|floatformat:2 }}</td>
+                {% else %}
+                <td class="p-4 text-xs font-mono text-right font-black text-red-600 dark:text-red-400">R$ 0,00</td>
+                {% endif %}
+                <td class="p-4 text-center">
+                    {% if inst.paid_value > 0 %}
+                    <span class="text-xs font-mono font-bold text-green-600 dark:text-green-400">{{ inst.payment_date|date:"d/m/Y"|default:"-" }}</span>
+                    {% else %}
+                    <span class="text-xs font-mono font-bold text-red-600 dark:text-red-400">-
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="p-8 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Nenhum recebimento registrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
