@@ -1,2 +1,2 @@
 release: python manage.py migrate
-web: gunicorn finance_system.wsgi
+web: gunicorn --bind 0.0.0.0:$PORT finance_system.wsgi:application
