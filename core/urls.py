@@ -9,6 +9,7 @@ urlpatterns = [
     path('clientes/novo/', views.cliente_create, name='cliente_create'),
     path('clientes/<int:pk>/', views.cliente_detail, name='cliente_detail'),
     path('clientes/<int:pk>/editar/', views.cliente_update, name='cliente_update'),
+    path('clientes/<int:pk>/excluir/', views.cliente_delete, name='cliente_delete'),
 
     # Pagamentos
     path('payments/', views.payment_list, name='payment_list'),

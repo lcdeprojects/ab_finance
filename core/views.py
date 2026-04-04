@@ -21,18 +21,12 @@ def dashboard(request):
     current_month = today.month
     current_year = today.year
 
-    # KPIs: Sum paid installments and down payments from new payments this month/year
-    down_payments_month = Payment.objects.filter(
-        created_at__month=current_month,
-        created_at__year=current_year,
-        down_payment_is_paid=True
-    ).aggregate(total=Sum('down_payment'))['total'] or 0
-
-    monthly_inflows = (Installment.objects.filter(
-        due_date__month=current_month, 
-        due_date__year=current_year,
+    # Monthly Inflows: Sum of paid installments/entries for the current month based on PAYMENT DATE
+    monthly_inflows = Installment.objects.filter(
+        payment_date__month=current_month,
+        payment_date__year=current_year,
         is_paid=True
-    ).aggregate(total=Sum('paid_value'))['total'] or 0) + down_payments_month
+    ).aggregate(total=Sum('paid_value'))['total'] or 0
 
     monthly_installments = Installment.objects.filter(
         due_date__month=current_month,
@@ -42,12 +36,9 @@ def dashboard(request):
     # Pending = Total Installment Value - Paid Value so far
     monthly_pending = sum(inst.pending_value for inst in monthly_installments)
 
-    down_payments_year = Payment.objects.filter(
-        created_at__year=current_year
-    ).aggregate(total=Sum('down_payment'))['total'] or 0
 
     annual_total = Installment.objects.filter(
-        due_date__year=current_year,
+        payment_date__year=current_year,
         is_paid=True
     ).aggregate(total=Sum('paid_value'))['total'] or 0
 
@@ -80,8 +71,8 @@ def dashboard(request):
         y = target_date.year
         
         m_inst = Installment.objects.filter(
-            due_date__month=m,
-            due_date__year=y,
+            payment_date__month=m,
+            payment_date__year=y,
             is_paid=True
         ).aggregate(total=Sum('paid_value'))['total'] or 0
         
@@ -189,6 +180,16 @@ def cliente_update(request, pk):
     else:
         form = ClienteForm(instance=cliente)
     return render(request, 'core/client_form.html', {'form': form, 'is_update': True})
+
+@login_required
+def cliente_delete(request, pk):
+    cliente = get_object_or_404(Cliente, pk=pk)
+    if request.method == 'POST':
+        cliente.delete()
+        from django.contrib import messages
+        messages.success(request, 'Cliente excluído com sucesso!')
+        return redirect('cliente_list')
+    return render(request, 'core/cliente_confirm_delete.html', {'cliente': cliente})
 
 @login_required
 def cliente_detail(request, pk):
@@ -426,8 +427,8 @@ def paid_list(request):
     month = int(month_val) if month_val else today.month
     year = int(year_val) if year_val else today.year
     
-    # Base queryset: only PAID installments
-    qs = Installment.objects.filter(due_date__month=month, due_date__year=year, is_paid=True)
+    # Base queryset: only PAID installments filtered by payment date
+    qs = Installment.objects.filter(payment_date__month=month, payment_date__year=year, is_paid=True)
     
     if name_query:
         qs = qs.filter(payment__cliente__nome__icontains=name_query)
@@ -458,8 +459,8 @@ def pay_list(request):
     month = int(month_val) if month_val else today.month
     year = int(year_val) if year_val else today.year
     
-    # Base queryset: only PAID installments
-    qs = Installment.objects.filter(due_date__month=month, due_date__year=year)
+    # Base queryset: only PAID installments filtered by payment date
+    qs = Installment.objects.filter(payment_date__month=month, payment_date__year=year)
     
     if name_query:
         qs = qs.filter(payment__cliente__nome__icontains=name_query)
