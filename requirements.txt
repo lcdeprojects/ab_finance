@@ -1,0 +1,12 @@
+asgiref==3.11.1
+Django==5.0.3
+django-htmx==1.17.2
+python-dateutil==2.9.0.post0
+python-dotenv==1.0.1
+six==1.17.0
+sqlparse==0.5.5
+psycopg[binary]==3.1.18
+dj-database-url==2.1.0
+openpyxl==3.1.5
+gunicorn==23.0.0
+whitenoise==6.6.0

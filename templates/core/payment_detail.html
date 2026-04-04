@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block header %}Detalhes do Pagamento{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div>
+        <div class="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-2">
+            {% if payment.cliente %}
+                <a href="{% url 'cliente_detail' payment.cliente.pk %}" class="hover:underline">{{ payment.cliente.nome }}</a>
+            {% else %}
+                <span class="text-gray-400">Sem cliente</span>
+            {% endif %}
+            <span class="text-slate-300">/</span>
+            <span class="text-slate-400">Contrato #{{ payment.pk }}</span>
+        </div>
+        <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">R$ {{ payment.total_value|floatformat:2 }}</h1>
+        <p class="text-sm text-slate-500 mt-1">Contrato firmado em {{ payment.created_at|date:"d/m/Y" }} via {{ payment.payment_method }}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'payment_update' payment.pk %}" class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Editar</a>
+        <a href="{% url 'payment_delete' payment.pk %}" class="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-100 transition-all shadow-sm">Excluir</a>
+    </div>
+</div>
+
+<!-- Stats Dashboard -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Progresso de Parcelas</span>
+        <div class="flex items-end justify-between mb-2">
+            <span class="text-2xl font-black text-slate-800 dark:text-white">{{ stats.paid_count }}<span class="text-slate-300 font-light mx-1">/</span>{{ stats.total_count }}</span>
+            <span class="text-[10px] font-bold text-primary">{{ stats.paid_count|add:0|default:0 }} pagas</span>
+        </div>
+        <div class="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+            {% widthratio stats.paid_count stats.total_count 100 as progress %}
+            <div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: {{ progress }}%"></div>
+        </div>
+    </div>
+    
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Valor Pago</span>
+        <span class="text-2xl font-black text-green-600 font-mono">R$ {{ stats.paid_value|floatformat:2 }}</span>
+        <span class="block text-[10px] text-slate-400 mt-1">Total recebido até agora</span>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">A Receber (Abertas)</span>
+        <span class="text-2xl font-black text-primary font-mono">R$ {{ stats.open_value|floatformat:2 }}</span>
+        <span class="block text-[10px] text-slate-400 mt-1">{{ stats.open_count }} parcelas futuras</span>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Inadimplente</span>
+        <span class="text-2xl font-black text-red-500 font-mono">R$ {{ stats.default_value|floatformat:2 }}</span>
+        <span class="block text-[10px] text-red-400/70 mt-1 font-bold">Vencidas e não pagas</span>
+    </div>
+</div>
+
+<!-- Entry Highlight Card (Option C) -->
+{% if entry %}
+<h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-3">
+    Controle de Entrada
+    <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+</h2>
+
+<div class="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl p-6 mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div>
+            <span class="block text-[10px] font-bold text-primary uppercase tracking-widest">Entrada do Contrato</span>
+            <span class="text-2xl font-black text-slate-800 dark:text-white font-mono">R$ {{ entry.value|floatformat:2 }}</span>
+            <span class="block text-xs text-slate-500 mt-1">Vencimento: {{ entry.due_date|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+    
+    <div class="flex items-center gap-6">
+        <div class="text-center md:text-right">
+            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status de Pagamento</span>
+            {% if entry.is_paid %}
+                <span class="px-4 py-1.5 bg-green-500 text-white text-[10px] font-black uppercase rounded-full shadow-lg shadow-green-500/20">Pago em {{ entry.payment_date|date:"d/m/Y" }}</span>
+            {% elif entry.due_date < today %}
+                <span class="px-4 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase rounded-full shadow-lg shadow-red-500/20 animate-pulse">Atrasado</span>
+            {% else %}
+                <span class="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase rounded-full">Pendente</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<h2 class="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
+    Cronograma de Parcelas Mensais
+    <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+</h2>
+
+<div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                <th class="p-5">#</th>
+                <th class="p-5">Vencimento</th>
+                <th class="p-5">Tipo</th>
+                <th class="p-5">Valor</th>
+                <th class="p-5 text-center">Status</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50 dark:divide-slate-700/50">
+            {% for inst in installments %}
+            <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-700/20 transition-colors">
+                <td class="p-5 text-sm font-bold text-slate-400">{{ inst.number }}</td>
+                <td class="p-5 text-sm font-bold text-slate-700 dark:text-slate-300">{{ inst.due_date|date:"d/m/Y" }}</td>
+                <td class="p-5 text-sm font-bold text-slate-400">Parcela Mensal</td>
+                <td class="p-5 text-sm font-black text-slate-800 dark:text-white font-mono">R$ {{ inst.value|floatformat:2 }}</td>
+                <td class="p-5 text-center">
+                    {% if inst.is_paid %}
+                        <span class="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase rounded-full border border-green-100">Pago</span>
+                    {% elif inst.due_date < today %}
+                        <span class="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase rounded-full border border-red-100 animate-pulse">Atrasado</span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-slate-100 text-slate-400 text-[10px] font-black uppercase rounded-full">Pendente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="p-10 text-center text-slate-400 text-sm italic">Nenhuma parcela mensal gerada para este contrato.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

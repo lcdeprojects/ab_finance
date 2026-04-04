@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block header %}Dashboard{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+    <!-- Total em Contratos -->
+    <div class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 p-6 border border-slate-100 dark:border-slate-700/50 flex flex-col relative overflow-hidden group">
+        <div class="absolute -right-6 -top-6 w-24 h-24 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+        <span class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 tracking-wide uppercase">Contratos Total</span>
+        <span class="text-2xl font-extrabold text-indigo-500 dark:text-indigo-400 tracking-tight">R$ {{ total_contracts|floatformat:2 }}</span>
+    </div>
+
+    <!-- Pendência Global -->
+    <div class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 p-6 border border-slate-100 dark:border-slate-700/50 flex flex-col relative overflow-hidden group">
+        <div class="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 dark:bg-amber-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+        <span class="text-sm font-semibold text-slate-500 dark:text-white mb-2 tracking-wide uppercase">Pendência Global</span>
+        <span class="text-2xl font-extrabold text-slate-800 dark:text-yellow-500 tracking-tight">R$ {{ total_pending|floatformat:2 }}</span>
+    </div>
+
+    <!-- Recebido Mês -->
+    <div class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 p-6 border border-slate-100 dark:border-slate-700/50 flex flex-col relative overflow-hidden group">
+        <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 dark:bg-blue-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+        <span class="text-sm font-semibold text-slate-500 dark:text-white mb-2 tracking-wide uppercase">Recebido Mês</span>
+        <span class="text-2xl font-extrabold text-slate-800 dark:text-green-500 tracking-tight">R$ {{ monthly_inflows|floatformat:2 }}</span>
+    </div>
+
+
+    <!-- Inadimplência Total -->
+    <div class="bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-slate-900 rounded-2xl shadow-lg shadow-red-100/50 dark:shadow-black/20 p-6 border border-red-100 dark:border-red-900/30 flex flex-col relative overflow-hidden group">
+        <div class="absolute -right-6 -top-6 w-24 h-24 bg-red-500/10 dark:bg-red-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+        <span class="text-sm font-semibold text-red-500 dark:text-red-400 mb-2 tracking-wide uppercase">Inadimplência</span>
+        <span class="text-2xl font-extrabold text-red-600 dark:text-red-500 tracking-tight">R$ {{ total_defaults|floatformat:2 }}</span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6">
+    <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700/50">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Recebimentos Mensais
+            </h3>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full">Últimos 12 meses</span>
+        </div>
+        <div class="h-80 w-full">
+            <canvas id="receivesChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('receivesChart').getContext('2d');
+        
+        // Gradient for bars
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, '#3b82f6');
+        gradient.addColorStop(1, '#60a5fa');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Valor Recebido (R$)',
+                    data: {{ chart_values|safe }},
+                    backgroundColor: gradient,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 13 },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return 'R$ ' + context.raw.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 11, weight: '600' }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#e2e8f033',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 11 },
+                            callback: function(value) {
+                                return 'R$ ' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

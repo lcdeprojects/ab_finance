@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block header %}{% if is_update %}Editar Pagamento{% else %}Novo Pagamento{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto font-sans">
+    <div class="bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+        <div class="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h2 class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                {% if is_update %}(ID: {{ payment.pk }}) Edição de Registro{% else %}Cadastro de Novo Contrato{% endif %}
+            </h2>
+        </div>
+
+        <form method="post" action="" class="p-8">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <!-- Section 1: Client Selection -->
+                <div class="lg:col-span-12">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+                        <span class="text-[10px] font-bold text-primary uppercase tracking-[0.2em] whitespace-nowrap">Vincular Cliente</span>
+                        <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
+                        <div class="md:col-span-4">
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1">Cliente</label>
+                            {{ form.cliente }}
+                            {% if form.cliente.errors %}<p class="text-red-500 text-[10px] mt-1">{{ form.cliente.errors.0 }}</p>{% endif %}
+                            <p class="mt-2 text-[10px] text-slate-400">Selecione o cliente para este contrato. Se o cliente não existir, <a href="{% url 'cliente_create' %}" class="text-primary hover:underline font-bold">cadastre-o primeiro</a>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Financial Details -->
+                <div class="lg:col-span-12">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+                        <span class="text-[10px] font-bold text-primary uppercase tracking-[0.2em] whitespace-nowrap">Financeiro</span>
+                        <div class="h-px bg-slate-100 dark:bg-slate-700 flex-grow"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-slate-50/50 dark:bg-slate-900/30 p-4 border border-slate-100 dark:border-slate-800 rounded-lg">
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">Valor do Contrato</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-mono">R$</span>
+                                {{ form.total_value }}
+                            </div>
+                            {% if form.total_value.errors %}<p class="text-red-500 text-[10px] mt-1">{{ form.total_value.errors.0 }}</p>{% endif %}
+                        </div>
+
+                        <div class="bg-slate-50/50 dark:bg-slate-900/30 p-4 border border-slate-100 dark:border-slate-800 rounded-lg">
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">Valor da Entrada</label>
+                            <div class="relative mb-3">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-mono">R$</span>
+                                {{ form.down_payment }}
+                            </div>
+                            {% if form.down_payment.errors %}<p class="text-red-500 text-[10px] mt-1">{{ form.down_payment.errors.0 }}</p>{% endif %}
+                            
+                            <label class="flex items-center gap-2 cursor-pointer group mt-2">
+                                <div class="relative">
+                                    {{ form.down_payment_is_paid }}
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">A entrada já foi paga?</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1">Data da Entrada</label>
+                            {{ form.down_payment_date }}
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1">Primeiro Vencimento</label>
+                            {{ form.due_date }}
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1">Método de Pagamento</label>
+                            {{ form.payment_method }}
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 ml-1">Número de Parcelas</label>
+                            {{ form.installments }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-12 flex justify-end gap-4 border-t border-slate-100 dark:border-slate-800 pt-8">
+                <a href="{% url 'payment_list' %}" class="px-6 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</a>
+                <button type="submit" class="bg-primary hover:brightness-110 text-white px-10 py-2.5 rounded-md active:scale-95 transition-all text-[11px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-primary/20">
+                    Salvar Registro
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/imask"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const phoneMask = IMask(document.getElementById('id_phone'), {
+            mask: '(00) 00000-0000'
+        });
+        const cpfMask = IMask(document.getElementById('id_cpf'), {
+            mask: '000.000.000-00'
+        });
+    });
+</script>
+{% endblock %}

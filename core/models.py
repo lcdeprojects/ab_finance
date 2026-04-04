@@ -1,0 +1,129 @@
+from django.db import models
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
+from decimal import Decimal
+import re
+
+class Cliente(models.Model):
+    nome = models.CharField("Nome Completo", max_length=255)
+    cpf = models.CharField("CPF", max_length=14, unique=True)
+    telefone = models.CharField("Telefone", max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.cpf:
+            self.cpf = re.sub(r'\D', '', str(self.cpf))
+        if self.telefone:
+            self.telefone = re.sub(r'\D', '', str(self.telefone))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nome} ({self.cpf})"
+
+class Payment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ("Pix", "Pix"),
+        ("Cartão", "Cartão"),
+    ]
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="payments", null=True)
+    total_value = models.DecimalField("Valor Total", max_digits=10, decimal_places=2)
+    down_payment = models.DecimalField("Entrada", max_digits=10, decimal_places=2, default=0)
+    down_payment_date = models.DateField("Data da Entrada", default=timezone.now)
+    installments = models.PositiveIntegerField("Parcelas", choices=[(i, str(i)) for i in range(1, 13)], default=1)
+    installment_value = models.DecimalField("Valor da Parcela", max_digits=10, decimal_places=2, editable=False)
+    due_date = models.DateField("Data de Vencimento Inicial")
+    payment_method = models.CharField("Método de Pagamento", choices=PAYMENT_METHOD_CHOICES, max_length=100)
+    down_payment_is_paid = models.BooleanField("Entrada Paga?", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.installments > 0:
+            residual = self.total_value - self.down_payment
+            self.installment_value = residual / Decimal(self.installments)
+        else:
+            self.installment_value = Decimal(0)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        cliente_nome = self.cliente.nome if self.cliente else self.name
+        return f"{cliente_nome} - R$ {self.total_value}"
+
+class Installment(models.Model):
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name="installment_set")
+    number = models.PositiveIntegerField("Número da Parcela")
+    value = models.DecimalField("Valor da Parcela", max_digits=10, decimal_places=2)
+    paid_value = models.DecimalField("Valor Pago", max_digits=10, decimal_places=2, default=0)
+    due_date = models.DateField("Data de Vencimento")
+    payment_date = models.DateField("Data do Pagamento", null=True, blank=True)
+    is_paid = models.BooleanField("Pago S/N", default=False)
+    has_nf = models.BooleanField("NF", default=False)
+
+    @property
+    def pending_value(self):
+        return self.value - self.paid_value
+
+    def __str__(self):
+        cliente_nome = self.payment.cliente.nome if self.payment.cliente else self.payment.name
+        return f"{cliente_nome} - Parcela {self.number}/{self.payment.installments}"
+
+# Signal for automatic generation
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Payment)
+def sync_installments(sender, instance, created, **kwargs):
+    """
+    Syncs installments when a Payment is created or updated.
+    Preserves paid installments (is_paid=True).
+    Recreates/adjusts unpaid installments (is_paid=False).
+    """
+    # Get existing paid installments
+    paid_installments = instance.installment_set.filter(is_paid=True).order_by('number')
+    paid_nums = set(paid_installments.values_list('number', flat=True))
+    paid_total = paid_installments.aggregate(models.Sum('value'))['value__sum'] or Decimal('0')
+    
+    # 1. Delete all UNPAID installments to start fresh for the remaining balance
+    instance.installment_set.filter(is_paid=False).delete()
+    
+    # 2. Handle Entry (#0) if it was NOT paid and down_payment > 0
+    if instance.down_payment > 0 and 0 not in paid_nums:
+        Installment.objects.create(
+            payment=instance,
+            number=0,
+            value=instance.down_payment,
+            due_date=instance.down_payment_date,
+            is_paid=instance.down_payment_is_paid,
+            payment_date=timezone.now().date() if instance.down_payment_is_paid else None,
+            paid_value=instance.down_payment if instance.down_payment_is_paid else 0
+        )
+        
+    # 3. Handle Normal Installments (#1..N)
+    normal_paid_count = paid_installments.filter(number__gt=0).count()
+    remaining_count = max(0, instance.installments - normal_paid_count)
+    
+    if remaining_count > 0:
+        # Calculate remaining balance: Total - PaidHistory - UnpaidEntrance
+        balance = instance.total_value - paid_total
+        if 0 not in paid_nums:
+             balance -= instance.down_payment
+             
+        # Value for each remaining unpaid installment
+        new_val = (balance / Decimal(remaining_count)).quantize(Decimal('0.01'))
+        
+        # Create missing installments
+        # We skip numbers that are already paid
+        created_count = 0
+        for i in range(1, 100): # Safe upper bound
+            if created_count >= remaining_count:
+                break
+                
+            if i not in paid_nums:
+                # Calculate date: based on i-1 months from start date?
+                # Actually, to keep it simple, we use the original i-th month logic
+                Installment.objects.create(
+                    payment=instance,
+                    number=i,
+                    value=new_val,
+                    due_date=instance.due_date + relativedelta(months=i-1)
+                )
+                created_count += 1
