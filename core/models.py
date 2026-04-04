@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 import re
 
 class Cliente(models.Model):
@@ -146,22 +146,28 @@ def sync_installments(sender, instance, created, **kwargs):
              balance -= instance.down_payment
              
         # Value for each remaining unpaid installment
-        new_val = (balance / Decimal(remaining_count)).quantize(Decimal('0.01'))
+        # We use integer division and then calculate the remainder
+        # Or just calculate total and give the difference to the first one
+        total_remaining_val = balance.quantize(Decimal('0.01'))
+        base_val = (total_remaining_val / Decimal(remaining_count)).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        remainder = total_remaining_val - (base_val * Decimal(remaining_count))
         
         # Create missing installments
-        # We skip numbers that are already paid
         created_count = 0
         for i in range(1, 100): # Safe upper bound
             if created_count >= remaining_count:
                 break
                 
             if i not in paid_nums:
-                # Calculate date: based on i-1 months from start date?
-                # Actually, to keep it simple, we use the original i-th month logic
+                current_val = base_val
+                if created_count == 0:
+                    # Give the remainder to the first installment created
+                    current_val += remainder
+                
                 Installment.objects.create(
                     payment=instance,
                     number=i,
-                    value=new_val,
+                    value=current_val,
                     due_date=instance.due_date + relativedelta(months=i-1)
                 )
                 created_count += 1

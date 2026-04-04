@@ -32,8 +32,8 @@ def insert_payment():
        cliente = insert_cliente()
    
    # Generate random payment data
-   total_value = Decimal(str(round(random.uniform(1000, 4000), 2)))
-   down_payment = Decimal(str(round(random.uniform(0, float(total_value) * 0.3), 2)))
+   total_value = Decimal(str(4000.00))
+   down_payment = Decimal(str(1000.00))
    installments = fake.random_int(min=1, max=12)
    down_payment_date = fake.date_between(start_date='-100d', end_date='today')
    

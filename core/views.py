@@ -46,27 +46,24 @@ def dashboard(request):
         created_at__year=current_year
     ).aggregate(total=Sum('down_payment'))['total'] or 0
 
-    annual_total = (Installment.objects.filter(
+    annual_total = Installment.objects.filter(
         due_date__year=current_year,
-        is_paid=True
-    ).aggregate(total=Sum('paid_value'))['total'] or 0) + down_payments_year
-
-    # Inadimplência: due_date < today and is_paid=False
-    defaults = Installment.objects.filter(
-        due_date__lt=today,
-        is_paid=False
-    )
-    total_defaults = sum(inst.pending_value for inst in defaults)
-
-    paid_installments = Installment.objects.filter(
         is_paid=True
     ).aggregate(total=Sum('paid_value'))['total'] or 0
 
-    # Total Received: Sum of all paid installments (includes entries #0)
+    # Inadimplência: due_date < today and is_paid=False
+    defaults_agg = Installment.objects.filter(
+        due_date__lt=today,
+        is_paid=False
+    ).aggregate(v=Sum('value'), p=Sum('paid_value'))
+    total_defaults = (defaults_agg['v'] or 0) - (defaults_agg['p'] or 0)
+
+    # Total Received: Sum of all paid_value from all installments
     total_received = Installment.objects.filter(is_paid=True).aggregate(total=Sum('paid_value'))['total'] or 0
     
-    # Total Outstanding: Sum of all unpaid installments (includes entries #0)
-    total_pending = sum(inst.pending_value for inst in Installment.objects.filter(is_paid=False))
+    # Total Outstanding: Sum of (value - paid_value) for all UNPAID installments
+    pending_agg = Installment.objects.filter(is_paid=False).aggregate(v=Sum('value'), p=Sum('paid_value'))
+    total_pending = (pending_agg['v'] or 0) - (pending_agg['p'] or 0)
 
     # Total in Contracts: Sum of all Payment total_value
     total_contracts = Payment.objects.aggregate(total=Sum('total_value'))['total'] or 0
@@ -82,13 +79,6 @@ def dashboard(request):
         m = target_date.month
         y = target_date.year
         
-        # Monthly income for this specific month/year
-        m_down = Payment.objects.filter(
-            created_at__month=m,
-            created_at__year=y,
-            down_payment_is_paid=True   
-        ).aggregate(total=Sum('down_payment'))['total'] or 0
-        
         m_inst = Installment.objects.filter(
             due_date__month=m,
             due_date__year=y,
@@ -96,7 +86,7 @@ def dashboard(request):
         ).aggregate(total=Sum('paid_value'))['total'] or 0
         
         chart_labels.append(f"{MONTH_NAMES[m-1]}/{str(y)[2:]}")
-        chart_values.append(float(m_inst + m_down))
+        chart_values.append(float(m_inst))
 
     context = {
         'monthly_inflows': monthly_inflows,
