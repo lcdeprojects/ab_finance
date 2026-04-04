@@ -15,8 +15,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . /app/
 RUN python manage.py collectstatic --noinput
 
-# Railway automatically sets the PORT environment variable
-ENV PORT=8000
-EXPOSE $PORT
+# Give execution permission to the start script
+RUN chmod +x /app/start.sh
 
-CMD gunicorn --bind 0.0.0.0:$PORT finance_system.wsgi:application
+# Use the start script as the entrypoint
+CMD ["/app/start.sh"]
