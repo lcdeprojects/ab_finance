@@ -12,6 +12,20 @@ class ClienteForm(forms.ModelForm):
         model = Cliente
         fields = ['nome', 'cpf', 'telefone']
 
+    def clean_cpf(self):
+        cpf = self.cleaned_data.get('cpf')
+        if cpf:
+            import re
+            return re.sub(r'\D', '', str(cpf))
+        return cpf
+
+    def clean_telefone(self):
+        telefone = self.cleaned_data.get('telefone')
+        if telefone:
+            import re
+            return re.sub(r'\D', '', str(telefone))
+        return telefone
+
 class PaymentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
