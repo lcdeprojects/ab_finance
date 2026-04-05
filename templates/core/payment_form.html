@@ -57,6 +57,13 @@
                                 {{ form.down_payment }}
                             </div>
                             {% if form.down_payment.errors %}<p class="text-red-500 text-[10px] mt-1">{{ form.down_payment.errors.0 }}</p>{% endif %}
+                            
+                            <label class="flex items-center gap-2 cursor-pointer group mt-2">
+                                <div class="relative">
+                                    {{ form.down_payment_is_paid }}
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest group-hover:text-primary transition-colors">Entrada paga?</span>
+                            </label>
                         </div>
 
                         <div>
