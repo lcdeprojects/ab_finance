@@ -8,6 +8,8 @@ class Cliente(models.Model):
     nome = models.CharField("Nome Completo", max_length=255)
     cpf = models.CharField("CPF", max_length=14, unique=True)
     telefone = models.CharField("Telefone", max_length=20)
+    data_nascimento = models.DateField("Data de Nascimento", null=True, blank=False)
+    notas = models.TextField("Notas", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -29,7 +31,7 @@ class Payment(models.Model):
     total_value = models.DecimalField("Valor Total", max_digits=10, decimal_places=2)
     down_payment = models.DecimalField("Entrada", max_digits=10, decimal_places=2, default=0)
     down_payment_date = models.DateField("Data da Entrada", default=timezone.now)
-    installments = models.PositiveIntegerField("Parcelas", choices=[(i, str(i)) for i in range(1, 13)], default=1)
+    installments = models.PositiveIntegerField("Parcelas", choices=[(i, str(i)) for i in range(1, 16)], default=1)
     installment_value = models.DecimalField("Valor da Parcela", max_digits=10, decimal_places=2, editable=False)
     due_date = models.DateField("Data de Vencimento Inicial")
     payment_method = models.CharField("Método de Pagamento", choices=PAYMENT_METHOD_CHOICES, max_length=100)

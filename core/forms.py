@@ -10,7 +10,11 @@ class ClienteForm(forms.ModelForm):
 
     class Meta:
         model = Cliente
-        fields = ['nome', 'cpf', 'telefone']
+        fields = ['nome', 'cpf', 'telefone', 'data_nascimento', 'notas']
+        widgets = {
+            'data_nascimento': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'notas': forms.Textarea(attrs={'rows': 4}),
+        }
 
     def clean_cpf(self):
         cpf = self.cleaned_data.get('cpf')

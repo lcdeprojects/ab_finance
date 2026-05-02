@@ -194,6 +194,15 @@ def cliente_delete(request, pk):
 @login_required
 def cliente_detail(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk)
+    
+    if request.method == 'POST':
+        notas = request.POST.get('notas')
+        if notas is not None:
+            cliente.notas = notas
+            cliente.save()
+            messages.success(request, 'Notas atualizadas com sucesso!')
+            return redirect('cliente_detail', pk=pk)
+            
     payments = cliente.payments.all().order_by('-created_at')
     total_invested = payments.aggregate(total=Sum('total_value'))['total'] or 0
     
@@ -555,5 +564,75 @@ def export_installments_excel(request):
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename={filename}'
+    wb.save(response)
+    return response
+
+@login_required
+def birthdays_list(request):
+    month_val = request.GET.get('month')
+    today = timezone.now().date()
+    month = int(month_val) if month_val else today.month
+    
+    clientes = Cliente.objects.filter(data_nascimento__isnull=False, data_nascimento__month=month).order_by('data_nascimento__day')
+    
+    # Calculate age
+    for c in clientes:
+        c.idade = today.year - c.data_nascimento.year
+
+    context = {
+        'clientes': clientes,
+        'selected_month': month,
+        'month_name': MONTHS.get(month, "Mês"),
+        'months': MONTHS,
+    }
+    return render(request, 'core/birthdays_list.html', context)
+
+@login_required
+def export_birthdays_excel(request):
+    month_val = request.GET.get('month')
+    today = timezone.now().date()
+    month = int(month_val) if month_val else today.month
+
+    clientes = Cliente.objects.filter(data_nascimento__isnull=False, data_nascimento__month=month).order_by('data_nascimento__day')
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Aniversariantes {month}"
+
+    headers = ['Nome do Cliente', 'Data do Aniversário', 'Idade no Ano', 'Telefone / WhatsApp']
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    for c in clientes:
+        idade = today.year - c.data_nascimento.year
+        ws.append([
+            c.nome,
+            c.data_nascimento.strftime('%d/%m'),
+            idade,
+            c.telefone
+        ])
+
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except: pass
+        ws.column_dimensions[column].width = max_length + 5
+
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=aniversariantes_mes_{month}.xlsx'
     wb.save(response)
     return response
