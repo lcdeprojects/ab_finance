@@ -15,9 +15,14 @@
         <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">R$ {{ payment.total_value|floatformat:2 }}</h1>
         <p class="text-sm text-slate-500 mt-1">Contrato firmado em {{ payment.created_at|date:"d/m/Y" }} via {{ payment.payment_method }}</p>
     </div>
-    <div class="flex gap-2">
-        <a href="{% url 'payment_update' payment.pk %}" class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Editar</a>
-        <a href="{% url 'payment_delete' payment.pk %}" class="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-100 transition-all shadow-sm">Excluir</a>
+    <div class="flex items-center gap-4">
+        {% if stats.open_count == 0 and stats.canceled_count > 0 %}
+             <span class="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2 shadow-sm"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> Contrato Inativo</span>
+        {% endif %}
+        <div class="flex gap-2">
+            <a href="{% url 'payment_update' payment.pk %}" class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Editar</a>
+            <a href="{% url 'payment_delete' payment.pk %}" class="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-100 transition-all shadow-sm">Excluir</a>
+        </div>
     </div>
 </div>
 
@@ -76,7 +81,9 @@
     <div class="flex items-center gap-6">
         <div class="text-center md:text-right">
             <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status de Pagamento</span>
-            {% if entry.is_paid %}
+            {% if entry.is_canceled %}
+                <span class="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase rounded-full shadow-sm shadow-slate-200/20">Cancelada</span>
+            {% elif entry.is_paid %}
                 <span class="px-4 py-1.5 bg-green-500 text-white text-[10px] font-black uppercase rounded-full shadow-lg shadow-green-500/20">Pago em {{ entry.payment_date|date:"d/m/Y" }}</span>
             {% elif entry.due_date < today %}
                 <span class="px-4 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase rounded-full shadow-lg shadow-red-500/20 animate-pulse">Atrasado</span>
@@ -112,7 +119,9 @@
                 <td class="p-5 text-sm font-bold text-slate-400">Parcela Mensal</td>
                 <td class="p-5 text-sm font-black text-slate-800 dark:text-white font-mono">R$ {{ inst.value|floatformat:2 }}</td>
                 <td class="p-5 text-center">
-                    {% if inst.is_paid %}
+                    {% if inst.is_canceled %}
+                        <span class="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-400 text-[10px] font-black uppercase rounded-full border border-slate-200 dark:border-slate-600 shadow-sm">Cancelada</span>
+                    {% elif inst.is_paid %}
                         <span class="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase rounded-full border border-green-100">Pago</span>
                     {% elif inst.due_date < today %}
                         <span class="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase rounded-full border border-red-100 animate-pulse">Atrasado</span>

@@ -31,7 +31,8 @@ def dashboard(request):
     monthly_installments = Installment.objects.filter(
         due_date__month=current_month,
         due_date__year=current_year,
-        is_paid=False
+        is_paid=False,
+        is_canceled=False
     )
     # Pending = Total Installment Value - Paid Value so far
     monthly_pending = sum(inst.pending_value for inst in monthly_installments)
@@ -45,7 +46,8 @@ def dashboard(request):
     # Inadimplência: due_date < today and is_paid=False
     defaults_agg = Installment.objects.filter(
         due_date__lt=today,
-        is_paid=False
+        is_paid=False,
+        is_canceled=False
     ).aggregate(v=Sum('value'), p=Sum('paid_value'))
     total_defaults = (defaults_agg['v'] or 0) - (defaults_agg['p'] or 0)
 
@@ -53,7 +55,7 @@ def dashboard(request):
     total_received = Installment.objects.filter(is_paid=True).aggregate(total=Sum('paid_value'))['total'] or 0
     
     # Total Outstanding: Sum of (value - paid_value) for all UNPAID installments
-    pending_agg = Installment.objects.filter(is_paid=False).aggregate(v=Sum('value'), p=Sum('paid_value'))
+    pending_agg = Installment.objects.filter(is_paid=False, is_canceled=False).aggregate(v=Sum('value'), p=Sum('paid_value'))
     total_pending = (pending_agg['v'] or 0) - (pending_agg['p'] or 0)
 
     # Total in Contracts: Sum of all Payment total_value
@@ -122,13 +124,14 @@ def payment_detail(request, pk):
     # Calculate statistics
     total_installments = installments.count()
     paid_installments = installments.filter(is_paid=True).count()
-    open_installments = total_installments - paid_installments
+    open_installments = installments.filter(is_paid=False, is_canceled=False).count()
+    canceled_installments = all_installments.filter(is_canceled=True).count()
     
     paid_value = all_installments.filter(is_paid=True).aggregate(total=Sum('paid_value'))['total'] or Decimal('0')
     
     today = timezone.now().date()
-    val_open = sum(inst.pending_value for inst in all_installments.filter(is_paid=False, due_date__gte=today))
-    val_default = sum(inst.pending_value for inst in all_installments.filter(is_paid=False, due_date__lt=today))
+    val_open = sum(inst.pending_value for inst in all_installments.filter(is_paid=False, is_canceled=False, due_date__gte=today))
+    val_default = sum(inst.pending_value for inst in all_installments.filter(is_paid=False, is_canceled=False, due_date__lt=today))
     
     context = {
         'payment': payment,
@@ -138,6 +141,7 @@ def payment_detail(request, pk):
             'total_count': total_installments,
             'paid_count': paid_installments,
             'open_count': open_installments,
+            'canceled_count': canceled_installments,
             'paid_value': paid_value,
             'open_value': val_open,
             'default_value': val_default,
@@ -233,8 +237,11 @@ def payment_control(request):
     month = int(month_val) if month_val else today.month
     year = int(year_val) if year_val else today.year
     
-    # Base queryset: only UNPAID installments
-    qs = Installment.objects.filter()
+    # Base queryset
+    if status_filter == 'canceled':
+        qs = Installment.objects.filter(is_canceled=True)
+    else:
+        qs = Installment.objects.filter(is_canceled=False)
     
     if month and year:
         qs = qs.filter(due_date__month=month, due_date__year=year)
@@ -274,8 +281,8 @@ def default_list(request):
     
     today = timezone.now().date()
     
-    # Base queryset: only UNPAID and OVERDUE (due_date < today)
-    qs = Installment.objects.filter(due_date__lt=today, is_paid=False)
+    # Base queryset: only UNPAID and OVERDUE (due_date < today) and not canceled
+    qs = Installment.objects.filter(due_date__lt=today, is_paid=False, is_canceled=False)
     
     if month_val:
         qs = qs.filter(due_date__month=month_val)
@@ -370,6 +377,36 @@ def installment_update(request, pk):
         if is_paid:
             response['HX-Refresh'] = 'true'
         return response
+
+@login_required
+def installment_cancel(request, pk):
+    installment = get_object_or_404(Installment, pk=pk)
+    if request.method == 'POST':
+        installment.is_canceled = True
+        installment.is_paid = False
+        installment.paid_value = 0
+        installment.payment_date = None
+        installment.has_nf = False
+        installment.save()
+        messages.success(request, f"Parcela {installment.number} cancelada.")
+        
+        response = render(request, 'core/partials/installment_row.html', {'inst': installment})
+        response['HX-Refresh'] = 'true'
+        return response
+    return HttpResponse(status=405)
+
+@login_required
+def installment_reactivate(request, pk):
+    installment = get_object_or_404(Installment, pk=pk)
+    if request.method == 'POST':
+        installment.is_canceled = False
+        installment.save()
+        messages.success(request, f"Parcela {installment.number} reativada.")
+        
+        response = render(request, 'core/partials/installment_row.html', {'inst': installment})
+        response['HX-Refresh'] = 'true'
+        return response
+    return HttpResponse(status=405)
 
 @login_required
 def paid_installment_delete(request, pk):
@@ -538,7 +575,10 @@ def export_installments_excel(request):
 
     # Data
     for inst in installments:
-        status = "Pago" if inst.is_paid else ("Inadimplente" if inst.due_date < today else "A Vencer")
+        if inst.is_canceled:
+            status = "Cancelada"
+        else:
+            status = "Pago" if inst.is_paid else ("Inadimplente" if inst.due_date < today else "A Vencer")
         ws.append([
             inst.payment.cliente.nome,
             f"{inst.number}/{inst.payment.installments}",

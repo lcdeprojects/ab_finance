@@ -59,9 +59,12 @@ class Installment(models.Model):
     payment_date = models.DateField("Data do Pagamento", null=True, blank=True)
     is_paid = models.BooleanField("Pago S/N", default=False)
     has_nf = models.BooleanField("NF", default=False)
+    is_canceled = models.BooleanField("Cancelada", default=False)
 
     @property
     def pending_value(self):
+        if self.is_canceled:
+            return Decimal('0')
         return self.value - self.paid_value
 
     @property

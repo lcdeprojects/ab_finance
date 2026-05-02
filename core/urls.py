@@ -26,6 +26,8 @@ urlpatterns = [
     path('payments/defaults/', views.default_list, name='default_list'),
     path('payments/paid/', views.paid_list, name='paid_list'),
     path('installments/<int:pk>/update/', views.installment_update, name='installment_update'),
+    path('installments/<int:pk>/cancel/', views.installment_cancel, name='installment_cancel'),
+    path('installments/<int:pk>/reactivate/', views.installment_reactivate, name='installment_reactivate'),
     path('installments/<int:pk>/delete/', views.paid_installment_delete, name='paid_installment_delete'),
     path('payments/export/', views.export_installments_excel, name='export_payments_excel'),
 ]
